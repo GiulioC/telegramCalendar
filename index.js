@@ -4,7 +4,6 @@ const bodyParser    = require('body-parser');
 const got           = require('got');
 const moment        = require('moment');
 const redis         = require("redis");
-const pg            = require('pg');
 const config        = require('./config');
 const query         = require('./query');
 
@@ -14,15 +13,6 @@ const DOG_URL = 'https://dog-facts-api.herokuapp.com/api/v1/resources/dogs?numbe
 const bot = new Telegraf(config.botToken);
 
 const redisClient = redis.createClient(config.redis);
-
-const dbClient = new pg.Client({
-  user: config.db.user,
-  host: config.db.host,
-  database: config.db.name,
-  password: config.db.password,
-  port: config.db.port,
-})
-dbClient.connect();
 
 const monthNames = [
     "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giungno",
@@ -149,113 +139,12 @@ const composeListPickerKeyboard = function(listType) {
     return Markup.inlineKeyboard(keyboardRows);
 };
 
-const parseDate = function(dateStr, timeStr) {
-    const [yy, mm, dd] = dateStr.split("-");
-    const dateTime = (timeStr !== undefined) ? ` ${timeStr}` : ``;
-    return moment(`${yy}-${mm}-${dd}${dateTime}`);
-};
-
 const parseCbDate = function(dateStr) {
     let [year, month, day] = dateStr.split("_");
     if (month.length === 1) { month = `0${month}`; }
     if (day.length === 1) { day = `0${day}`; }
     console.log("\nCB DATE:", `${year}${month}${day}\n`)
     return moment(`${year}${month}${day}`).locale('IT');
-};
-
-const maybeSaveNewUser = function(chat, cb) {
-    const query = `
-        insert into users(chat_id, first_name, last_name, username, date_start)
-        values ($1, $2, $3, $4, now()::timestamptz)
-        on conflict (chat_id) do nothing
-    `;
-
-    dbClient.query(query, [chat.id, chat.first_name, chat.last_name, chat.username]).then((res) => {
-        cb(false, true);
-    }).catch((err) => {
-        cb(err, false);
-    });
-};
-
-const createNewEvent = function(eventData, cb) {
-    const query = `
-        insert into events(user_id, name, date_event, date_created)
-        select u.id, $2::text, $3::timestamptz, now()
-        from users u where u.chat_id = $1
-    `;
-
-    console.log(JSON.stringify(eventData, null, 2))
-    const eventDate = parseDate(eventData.event_date, `${eventData.event_hour}${eventData.event_minutes}`);
-    dbClient.query(query, [eventData.chatId, eventData.event_name, eventDate]).then((res) => {
-        cb(false, true);
-    }).catch((err) => {
-        cb(err, false);
-    });
-};
-
-const listUpcomingEvents = function(chatId, limit, offset) {
-    const query = `
-        select e.*
-        from events e join users u on e.user_id = u.id
-        where u.chat_id = $1
-        and date_event > now()
-        and deleted is not true
-        order by e.date_event asc
-        limit $2
-        offset $3
-    `;
-
-    return dbClient.query(query, [chatId, limit || 5, offset || 0])
-};
-
-const listMonthEvents = function(chatId, month) {
-    const startMonth = moment().month(month).date(1);
-    const query = `
-        select e.*
-        from events e join users u on e.user_id = u.id
-        where u.chat_id = $1
-        and deleted is not true
-        and date_event >= '${startMonth.locale('IT').format("yyyy-MM-DD")}'
-        and date_event < '${startMonth.add(1, 'months').locale('IT').format("yyyy-MM-DD")}'
-    `;
-    return dbClient.query(query, [chatId]);
-};
-
-const listDayEvents = function(chatId, date) {
-    const query = `
-        select e.*
-        from events e join users u on e.user_id = u.id
-        where u.chat_id = $1
-        and date_event::date = '${date.locale('IT').format("yyyy-MM-DD")}'
-        and deleted is not true
-        order by e.date_event asc
-    `;
-    return dbClient.query(query, [chatId]);
-};
-
-const deleteEvent = function(chatId, eventId) {
-    const query = `
-        update events e
-        set deleted = true
-        from users u
-        where e.user_id = u.id
-        and u.chat_id = $1
-        and e.id = $2
-        returning e.date_event::date
-    `;
-    return dbClient.query(query, [chatId, eventId]);
-};
-
-const deleteAllDayEvents = function(chatId, date) {
-    const query = `
-        update events e
-        set deleted = true
-        from users u
-        where e.user_id = u.id
-        and u.chat_id = $1
-        and e.date_event::date = $2
-    `;
-    return dbClient.query(query, [chatId, date]);
 };
 
 bot.command('/cat', async (ctx) => {
@@ -291,7 +180,7 @@ bot.action(/changeMonth\/+/, checkInlineKeyboardValidity(), async (ctx) => {
     const redisKey = `event_dates_${ctx.chat.id}_${newMonthDate.format("yyyy_MM")}`;
     redisClient.get(redisKey, async (err, dates) => {
         if (dates == null) {
-            const res = await listMonthEvents(ctx.chat.id, newMonth);
+            const res = await query.listMonthEvents(ctx.chat.id, newMonth);
             dates = res.rows.map(e => moment(e.date_event).locale('IT').format("yyyy-MM-DD"));
             redisClient.set(redisKey, JSON.stringify(dates));
         } else {
@@ -410,7 +299,7 @@ stepHandler.action('confirmDate', removeKeyboardAfterClick(), async (ctx) => {
 stepHandler.action('confirmEvent', removeKeyboardAfterClick(), async (ctx) => {
     console.log("ConfirmEvent")
     ctx.session.myData.chatId = ctx.chat.id;
-    createNewEvent(ctx.session.myData, async (err, res) => {
+    query.createNewEvent(ctx.session.myData).then(async () => {
 
         const [year, month, day] = ctx.session.myData.event_date.split("-");
         console.log("MESE:", `event_dates_${ctx.chat.id}_${year}_${month}`);
@@ -468,7 +357,8 @@ const superWizard = new Scenes.WizardScene(
     const redisKey = `event_dates_${ctx.chat.id}_${currDate.format("yyyy_MM")}`;
     redisClient.get(redisKey, async (err, dates) => {
         if (dates == null) {
-            const res = await listMonthEvents(ctx.chat.id, moment().month());
+            //const res = await query.runQuery(query.listMonthEventsQuery(newMonth), [ctx.chat.id]);
+            const res = await query.listMonthEvents(ctx.chat.id, moment().month());
             dates = res.rows.map(e => moment(e.date_event).locale('IT').format("yyyy-MM-DD"));
             redisClient.set(redisKey, JSON.stringify(dates));
         } else {
@@ -518,7 +408,7 @@ bot.command('/nuovo_evento', (ctx) => {
 });
 
 bot.command('/lista_eventi', async (ctx) => {
-    listUpcomingEvents(ctx.chat.id, 5, 0).then(res => {
+    query.listUpcomingEvents(ctx.chat.id, 5, 0).then(res => {
         const events = res.rows;
         let message = "Prossimi eventi in programma:\n\n";
         for (e of events) {
@@ -534,7 +424,7 @@ bot.command('/calendario_eventi', (ctx) => {
     const redisKey = `event_dates_${ctx.chat.id}_${currDate.format("yyyy_MM")}`;
     redisClient.get(redisKey, async (err, dates) => {
         if (dates == null) {
-            const res = await listMonthEvents(ctx.chat.id, moment().month());
+            const res = await query.listMonthEvents(ctx.chat.id, moment().month());
             dates = res.rows.map(e => moment(e.date_event).locale('IT').format("yyyy-MM-DD"));
             redisClient.set(redisKey, JSON.stringify(dates));
         } else {
@@ -556,7 +446,7 @@ bot.action(/dayEvents\/+/, async (ctx) => {
 
     redisClient.get(redisKey, async (err, events) => {
         if (events == null) {
-            const res = await listDayEvents(ctx.chat.id, date);
+            const res = await query.listDayEvents(ctx.chat.id, date);
             events = res.rows;
             redisClient.set(redisKey, JSON.stringify(events));
         } else {
@@ -581,7 +471,7 @@ bot.action(/dayEvents\/+/, async (ctx) => {
 
 bot.action(/deleteEvent\/+/, removeKeyboardAfterClick(), async (ctx) => {
     const eventId = ctx.match.input.split("/")[1];
-    deleteEvent(ctx.chat.id, eventId).then(async (res) => {
+    query.deleteEvent(ctx.chat.id, eventId).then(async (res) => {
         const dateEvent = moment(res.rows[0].date_event);
 
         console.log("MESE:", `event_dates_${ctx.chat.id}_${dateEvent.format("yyyy_MM")}`)
@@ -595,7 +485,7 @@ bot.action(/deleteEvent\/+/, removeKeyboardAfterClick(), async (ctx) => {
 
 bot.action(/deleteDayEvents\/+/, removeKeyboardAfterClick(), async (ctx) => {
     let date = ctx.match.input.split("/")[1];
-    deleteAllDayEvents(ctx.chat.id, date).then(async () => {
+    query.deleteAllDayEvents(ctx.chat.id, date).then(async () => {
 
         date = moment(date);
         console.log("MESE:", `event_dates_${ctx.chat.id}_${date.format("yyyy_MM")}`)
@@ -608,7 +498,7 @@ bot.action(/deleteDayEvents\/+/, removeKeyboardAfterClick(), async (ctx) => {
 });
 
 bot.command('/start', (ctx) => {
-    maybeSaveNewUser(ctx.chat, (err, res) => {
+    query.maybeCreateNewUser(ctx.chat).then(() => {
         const displayName = ctx.chat.first_name || ctx.chat.username || '';
         ctx.replyWithMarkdown(`Ciao ${displayName}!\nPer creare un nuovo evento, digita /nuovo\\_evento`);
     });
