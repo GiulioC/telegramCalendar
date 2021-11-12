@@ -91,6 +91,7 @@ const composeDatePickerKeyboard = function(baseMonth, dates, callbackType) {
                 daysRow.push(Markup.button.callback(' ', 'placeholderTile'));
             } else {
 
+                // do something if slidingDate is earlier than current date?
                 /*if (slidingDate.date() < day) {
 
                 } else {
@@ -200,32 +201,23 @@ bot.action(/changeMonth\/+/, checkInlineKeyboardValidity(), async (ctx) => {
 });
 
 
-const stepHandler = new Composer()
-stepHandler.action(/pickDate\/+/, removeKeyboardAfterClick(), async (ctx) => {
+const newEventHandler = new Composer();
+newEventHandler.action(/pickDate\/+/, removeKeyboardAfterClick(), async (ctx) => {
     let [year,month,day] = ctx.match.input.split("/")[1].split("_");
     if (month.length === 1) { month = `0${month}`; }
     if (day.length === 1) { day = `0${day}`; }
     const date = moment(`${year}${month}${day}`).locale('IT');
-    //ctx.session.myData.event_date = date.format("yyyy-MM-DDTHH:mm:ss");
     ctx.session.myData.event_date = `${year}-${month}-${day}`;
-    //console.log(date, date.locale('IT').format("dddd D MMMM yyyy"))
-    //console.log("DATA:", date, JSON.stringify(ctx.session.myData, null, 2))
-
-    // await ctx.reply(`Step 2. Confermi questa data? ${date.locale('IT').format("dddd D MMMM yyyy")}`, Markup.inlineKeyboard([
-    //     Markup.button.callback('👍', 'confirmDate'),
-    //     Markup.button.callback('👎', 'pickDateAgain')
-    // ]));
-    await ctx.reply("Inserisci il titolo dell'evento")
-    return ctx.wizard.next()
+    await ctx.reply("Inserisci il titolo dell'evento");
+    return ctx.wizard.next();
 });
-stepHandler.action(/pickHour\/+/, removeKeyboardAfterClick(), async (ctx) => {
-    console.log("pickHour")
+newEventHandler.action(/pickHour\/+/, removeKeyboardAfterClick(), async (ctx) => {
+    console.log("pickHour");
     ctx.session.myData.event_hour = ctx.match.input.split("/")[1];
     console.log(ctx.session.myData);
-    await ctx.reply("Scegli i minuti", composeListPickerKeyboard('minutes'))
-    //return ctx.wizard.next()
+    await ctx.reply("Scegli i minuti", composeListPickerKeyboard('minutes'));
 });
-stepHandler.action(/pickMinute\/+/, removeKeyboardAfterClick(), async (ctx) => {
+newEventHandler.action(/pickMinute\/+/, removeKeyboardAfterClick(), async (ctx) => {
     console.log("pickHour")
     ctx.session.myData.event_minutes = ctx.match.input.split("/")[1];
     console.log(ctx.session.myData);
@@ -234,8 +226,8 @@ stepHandler.action(/pickMinute\/+/, removeKeyboardAfterClick(), async (ctx) => {
         Markup.button.callback('👎', 'discardEvent')
     ]));
 });
-stepHandler.action('confirmEvent', removeKeyboardAfterClick(), async (ctx) => {
-    console.log("ConfirmEvent")
+newEventHandler.action('confirmEvent', removeKeyboardAfterClick(), async (ctx) => {
+    console.log("ConfirmEvent");
     ctx.session.myData.chatId = ctx.chat.id;
     query.createNewEvent(ctx.session.myData).then(async () => {
 
@@ -249,19 +241,19 @@ stepHandler.action('confirmEvent', removeKeyboardAfterClick(), async (ctx) => {
         return ctx.scene.leave();
     });
 });
-stepHandler.action('discardEvent', removeKeyboardAfterClick(), async (ctx) => {
-    console.log("discardEvent")
-    await ctx.replyWithMarkdown('Evento annullato. Digita /nuovo\\_evento per crearne uno nuovo')
-    return ctx.scene.leave()
+newEventHandler.action('discardEvent', removeKeyboardAfterClick(), async (ctx) => {
+    console.log("discardEvent");
+    await ctx.replyWithMarkdown('Evento annullato. Digita /nuovo\\_evento per crearne uno nuovo');
+    return ctx.scene.leave();
 });
-stepHandler.command('exit', async (ctx) => {
+newEventHandler.command('exit', async (ctx) => {
   await ctx.reply('Evento annullato');
-  return ctx.scene.leave()
+  return ctx.scene.leave();
 })
-stepHandler.action('placeholderTile', (ctx) => {
-    ctx.reply('Scegli una data valida')
+newEventHandler.action('placeholderTile', (ctx) => {
+    ctx.reply('Scegli una data valida');
 });
-stepHandler.use((ctx) => {
+newEventHandler.use((ctx) => {
   ctx.replyWithMarkdown('Completa il passaggio o digita /exit per annullare la creazione dell\'evento');
 });
 
@@ -274,41 +266,39 @@ const newEventWizard = new Scenes.WizardScene(
     const redisKey = `event_dates_${ctx.chat.id}_${currDate.format("yyyy_MM")}`;
     redisClient.get(redisKey, async (err, dates) => {
         if (dates == null) {
-            //const res = await query.runQuery(query.listMonthEventsQuery(newMonth), [ctx.chat.id]);
             const res = await query.listMonthEvents(ctx.chat.id, moment().month());
             dates = res.rows.map(e => moment(e.date_event).locale('IT').format("yyyy-MM-DD"));
             redisClient.set(redisKey, JSON.stringify(dates));
         } else {
             dates = JSON.parse(dates);
         }
-        console.log(dates)
+        console.log(dates);
         ctx.reply("Scegli la data dell'evento", composeDatePickerKeyboard(moment().month(), dates, "pickDate"));
-        return ctx.wizard.next()
+        return ctx.wizard.next();
     });
 
   },
-  stepHandler,
+  newEventHandler,
   async (ctx) => {
       ctx.session.myData.event_name = ctx.message.text;
       console.log(ctx.session.myData);
       await ctx.reply("Inserisci l'ora dell'evento", composeListPickerKeyboard('hours'));
-      return ctx.wizard.next()
+      return ctx.wizard.next();
   },
-  stepHandler,
+  newEventHandler,
   async (ctx) => {
       console.log(ctx.session.myData);
-      await ctx.reply('Step 4')
-      return ctx.wizard.next()
+      await ctx.reply('Step 4');
+      return ctx.wizard.next();
   },
   async (ctx) => {
-    await ctx.reply('Done')
-    return await ctx.scene.leave()
+    await ctx.reply('Done');
+    return await ctx.scene.leave();
   }
 );
 
 bot.command('/nuovo_evento', (ctx) => {
-    //ctx.scene.enter('new_event_scene')
-    ctx.scene.enter('new-event-wizard')
+    ctx.scene.enter('new-event-wizard');
 });
 
 bot.command('/lista_eventi', async (ctx) => {
@@ -343,10 +333,10 @@ bot.action(/dayEvents\/+/, async (ctx) => {
     const date = parseCbDate(cbDate);
     const redisKey = `day_events_${ctx.chat.id}_${date.format("yyyy_MM_DD")}`;
 
-    console.log("\n\n")
-    console.log(cbDate)
-    console.log(date)
-    console.log(redisKey)
+    console.log("\n\n");
+    console.log(cbDate);
+    console.log(date);
+    console.log(redisKey);
 
     redisClient.get(redisKey, async (err, events) => {
         if (events == null) {
@@ -379,7 +369,7 @@ bot.action(/deleteEvent\/+/, removeKeyboardAfterClick(), async (ctx) => {
         const dateEvent = moment(res.rows[0].date_event);
 
         console.log("MESE:", `event_dates_${ctx.chat.id}_${dateEvent.format("yyyy_MM")}`)
-        console.log("GIORNO:", `day_events_${ctx.chat.id}_${dateEvent.format("yyyy_MM_DD")}`)
+        console.log("GIORNO:", `day_events_${ctx.chat.id}_${dateEvent.format("yyyy_MM_DD")}`);
         await redisClient.del(`event_dates_${ctx.chat.id}_${dateEvent.format("yyyy_MM")}`);
         await redisClient.del(`day_events_${ctx.chat.id}_${dateEvent.format("yyyy_MM_DD")}`);
 
@@ -392,8 +382,8 @@ bot.action(/deleteDayEvents\/+/, removeKeyboardAfterClick(), async (ctx) => {
     query.deleteAllDayEvents(ctx.chat.id, date).then(async () => {
 
         date = moment(date);
-        console.log("MESE:", `event_dates_${ctx.chat.id}_${date.format("yyyy_MM")}`)
-        console.log("GIORNO:", `day_events_${ctx.chat.id}_${date.format("yyyy_MM_DD")}`)
+        console.log("MESE:", `event_dates_${ctx.chat.id}_${date.format("yyyy_MM")}`);
+        console.log("GIORNO:", `day_events_${ctx.chat.id}_${date.format("yyyy_MM_DD")}`);
         await redisClient.del(`event_dates_${ctx.chat.id}_${date.format("yyyy_MM")}`);
         await redisClient.del(`day_events_${ctx.chat.id}_${date.format("yyyy_MM_DD")}`);
 
@@ -409,27 +399,9 @@ bot.command('/start', (ctx) => {
 });
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 const stage = new Scenes.Stage([newEventWizard], { default: 'new-event-wizard' });
 bot.use(session());
 bot.use(stage.middleware());
-
-
 
 
 bot.launch({
