@@ -197,58 +197,6 @@ bot.action(/changeMonth\/+/, checkInlineKeyboardValidity(), async (ctx) => {
 });
 
 
-const newEventScene = new Scenes.BaseScene('new_event_scene');
-
-newEventScene.enter((ctx) => {
-    console.log("scena aperta")
-    ctx.session.myData = {};
-    console.log("Data:", ctx.session.myData)
-    ctx.reply("Scegli la data dell'evento", composeDatePickerKeyboard(moment().month()));
-});
-
-newEventScene.action(/pickDate\/+/, removeKeyboardAfterClick(), (ctx) => {
-    let [year,month,day] = ctx.match.input.split("/")[1].split("_");
-    if (month.length === 1) { month = `0${month}`; }
-    if (day.length === 1) { day = `0${day}`; }
-    const date = moment(`${year}${month}${day}`);
-    ctx.session.myData.date = date;
-    console.log(date, date.locale('IT').format("dddd D MMMM yyyy"))
-
-    ctx.reply(`Confermi questa data? ${date.locale('IT').format("dddd D MMMM yyyy")}`, Markup.inlineKeyboard([
-        Markup.button.callback('👍', 'confirmDate'),
-        Markup.button.callback('👎', 'pickDateAgain')
-    ]));
-
-    //ctx.reply(`Hai scelto la data ${date.locale('IT').format("dddd D MMMM yyyy")}`);
-    //return ctx.scene.leave();
-});
-
-newEventScene.action('pickDateAgain', removeKeyboardAfterClick(), (ctx) => {
-    delete ctx.session.myData.date;
-    ctx.reply("Scegli la data dell'evento", composeDatePickerKeyboard(moment().month()));
-});
-
-newEventScene.action('confirmDate', removeKeyboardAfterClick(), (ctx) => {
-    //ctx.reply(`Hai scelto la data ${ctx.session.myData.date.locale('IT').format("dddd D MMMM yyyy")}`)
-    ctx.reply("Inserisci il titolo dell'evento");
-});
-
-// newEventScene.on('text', (ctx) => {
-//     ctx.reply(`titolo: ${ctx.message.text}`)
-// });
-
-newEventScene.leave((ctx) => {
-    console.log(ctx.session.myData)
-    console.log("scena chiusa")
-    ctx.reply('Scena chiusa');
-});
-
-
-
-
-
-
-
 const stepHandler = new Composer()
 stepHandler.action(/pickDate\/+/, removeKeyboardAfterClick(), async (ctx) => {
     let [year,month,day] = ctx.match.input.split("/")[1].split("_");
@@ -284,18 +232,18 @@ stepHandler.action(/pickMinute\/+/, removeKeyboardAfterClick(), async (ctx) => {
     ]));
     //return ctx.wizard.next()
 });
-stepHandler.action('pickDateAgain', removeKeyboardAfterClick(), (ctx) => {
+/*stepHandler.action('pickDateAgain', removeKeyboardAfterClick(), (ctx) => {
     delete ctx.session.myData.event_date;
     ctx.reply("Scegli la data dell'evento", composeDatePickerKeyboard(moment().month()));
     //return ctx.wizard.back()
-});
-stepHandler.action('confirmDate', removeKeyboardAfterClick(), async (ctx) => {
+});*/
+/*stepHandler.action('confirmDate', removeKeyboardAfterClick(), async (ctx) => {
     //ctx.reply(`Hai scelto la data ${ctx.session.myData.date.locale('IT').format("dddd D MMMM yyyy")}`)
     //await ctx.reply("Inserisci il titolo dell'evento");
     console.log("ConfirmDate")
     await ctx.reply("Inserisci il titolo dell'evento")
     return ctx.wizard.next()
-});
+});*/
 stepHandler.action('confirmEvent', removeKeyboardAfterClick(), async (ctx) => {
     console.log("ConfirmEvent")
     ctx.session.myData.chatId = ctx.chat.id;
@@ -316,16 +264,16 @@ stepHandler.action('discardEvent', removeKeyboardAfterClick(), async (ctx) => {
     await ctx.replyWithMarkdown('Evento annullato. Digita /nuovo\\_evento per crearne uno nuovo')
     return ctx.scene.leave()
 });
-stepHandler.action('next', async (ctx) => {
+/*stepHandler.action('next', async (ctx) => {
   await ctx.reply('Step 2. Via inline button')
   return ctx.wizard.next()
 })
 stepHandler.command('next', async (ctx) => {
   await ctx.reply('Step 2. Via command')
   return ctx.wizard.next()
-})
+})*/
 stepHandler.command('exit', async (ctx) => {
-  await ctx.reply('esco dalla scena')
+  await ctx.reply('Evento annullato');
   return ctx.scene.leave()
 })
 /*stepHandler.on('text', async (ctx) => {
@@ -337,12 +285,12 @@ stepHandler.command('exit', async (ctx) => {
 stepHandler.action('placeholderTile', (ctx) => {
     ctx.reply('Scegli una data valida')
 });
-stepHandler.use((ctx) =>
-  ctx.replyWithMarkdown('Press `Next` button or type /next')
-)
+stepHandler.use((ctx) => {
+  ctx.replyWithMarkdown('Completa il passaggio o digita /exit per annullare la creazione dell\'evento');
+});
 
-const superWizard = new Scenes.WizardScene(
-  'super-wizard',
+const newEventWizard = new Scenes.WizardScene(
+  'new-event-wizard',
   async (ctx) => {
     /*await ctx.reply(
       'Step 1',
@@ -398,13 +346,11 @@ const superWizard = new Scenes.WizardScene(
 
 
 
-const stage = new Scenes.Stage([newEventScene, superWizard], { default: 'new_event_scene' });
-bot.use(session());
-bot.use(stage.middleware());
+
 
 bot.command('/nuovo_evento', (ctx) => {
     //ctx.scene.enter('new_event_scene')
-    ctx.scene.enter('super-wizard')
+    ctx.scene.enter('new-event-wizard')
 });
 
 bot.command('/lista_eventi', async (ctx) => {
@@ -521,7 +467,9 @@ bot.command('/start', (ctx) => {
 
 
 
-
+const stage = new Scenes.Stage([newEventWizard], { default: 'new-event-wizard' });
+bot.use(session());
+bot.use(stage.middleware());
 
 
 
