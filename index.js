@@ -394,6 +394,20 @@ bot.use(session());
 bot.use(stage.middleware());
 
 
+bot.command('/comandi', async (ctx) => {
+    const commands = await ctx.getMyCommands();
+    let message = `Comandi disponibili:\n\n`;
+    for (c of commands) {
+        message = `${message}/${c.command.replace("_", "\\_")} - ${c.description}\n`;
+    }
+    console.log(message)
+    ctx.replyWithMarkdown(message);
+});
+
+bot.on('text', (ctx) => {
+    ctx.replyWithMarkdown('Digita /comandi per la lista dei comandi disponibili');
+});
+
 bot.launch({
   webhook: {
     domain: WEBHOOK,
