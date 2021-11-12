@@ -288,10 +288,6 @@ const newEventWizard = new Scenes.WizardScene(
   newEventHandler
 );
 
-bot.command('/nuovo_evento', (ctx) => {
-    ctx.scene.enter('new-event-wizard');
-});
-
 bot.command('/lista_eventi', async (ctx) => {
     query.listUpcomingEvents(ctx.chat.id, 5, 0).then(res => {
         const events = res.rows;
@@ -393,6 +389,9 @@ const stage = new Scenes.Stage([newEventWizard]);
 bot.use(session());
 bot.use(stage.middleware());
 
+bot.command('/nuovo_evento', (ctx) => {
+    ctx.scene.enter('new-event-wizard');
+});
 
 bot.command('/comandi', async (ctx) => {
     const commands = await ctx.getMyCommands();
