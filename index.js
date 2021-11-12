@@ -285,16 +285,7 @@ const newEventWizard = new Scenes.WizardScene(
       await ctx.reply("Inserisci l'ora dell'evento", composeListPickerKeyboard('hours'));
       return ctx.wizard.next();
   },
-  newEventHandler,
-  async (ctx) => {
-      console.log(ctx.session.myData);
-      await ctx.reply('Step 4');
-      return ctx.wizard.next();
-  },
-  async (ctx) => {
-    await ctx.reply('Done');
-    return await ctx.scene.leave();
-  }
+  newEventHandler
 );
 
 bot.command('/nuovo_evento', (ctx) => {
