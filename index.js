@@ -18,13 +18,15 @@ const monthNames = [
     "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giungno",
     "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
 ];
+
 const dayHours = [
     '00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11',
     '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23'
-]
+];
+
 const hourMinutes = [
     ':00', ':05', ':10', ':15', ':20', ':25', ':30', ':35', ':40', ':45', ':50', ':55'
-]
+];
 
 let last_message_id;
 let CALENDAR_CALLBACK;
@@ -159,7 +161,7 @@ bot.command('/dog', async (ctx) => {
     ctx.reply(res.body[0].fact);
 });
 
-bot.command('/sondaggio', saveMsgId(), async (ctx) => {
+bot.command('/sondaggio', async (ctx) => {
     ctx.reply("Ti piace questo bot?", Markup.inlineKeyboard([
         Markup.button.callback('👍', 'like'),
         Markup.button.callback('👎', 'dislike')
@@ -171,6 +173,7 @@ bot.command('/rimuovi_tastiera', async(ctx) => {
 });
 
 bot.action(['like','dislike'], checkInlineKeyboardValidity(), removeKeyboardAfterClick(), (ctx) => {
+    const feedback = ctx.update.callback_query.data;
     ctx.reply("Grazie per il tuo feedback.");
 });
 
