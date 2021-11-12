@@ -389,8 +389,7 @@ bot.command('/start', (ctx) => {
     });
 });
 
-
-const stage = new Scenes.Stage([newEventWizard], { default: 'new-event-wizard' });
+const stage = new Scenes.Stage([newEventWizard]);
 bot.use(session());
 bot.use(stage.middleware());
 
