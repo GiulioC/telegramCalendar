@@ -230,20 +230,7 @@ stepHandler.action(/pickMinute\/+/, removeKeyboardAfterClick(), async (ctx) => {
         Markup.button.callback('👍', 'confirmEvent'),
         Markup.button.callback('👎', 'discardEvent')
     ]));
-    //return ctx.wizard.next()
 });
-/*stepHandler.action('pickDateAgain', removeKeyboardAfterClick(), (ctx) => {
-    delete ctx.session.myData.event_date;
-    ctx.reply("Scegli la data dell'evento", composeDatePickerKeyboard(moment().month()));
-    //return ctx.wizard.back()
-});*/
-/*stepHandler.action('confirmDate', removeKeyboardAfterClick(), async (ctx) => {
-    //ctx.reply(`Hai scelto la data ${ctx.session.myData.date.locale('IT').format("dddd D MMMM yyyy")}`)
-    //await ctx.reply("Inserisci il titolo dell'evento");
-    console.log("ConfirmDate")
-    await ctx.reply("Inserisci il titolo dell'evento")
-    return ctx.wizard.next()
-});*/
 stepHandler.action('confirmEvent', removeKeyboardAfterClick(), async (ctx) => {
     console.log("ConfirmEvent")
     ctx.session.myData.chatId = ctx.chat.id;
@@ -264,24 +251,10 @@ stepHandler.action('discardEvent', removeKeyboardAfterClick(), async (ctx) => {
     await ctx.replyWithMarkdown('Evento annullato. Digita /nuovo\\_evento per crearne uno nuovo')
     return ctx.scene.leave()
 });
-/*stepHandler.action('next', async (ctx) => {
-  await ctx.reply('Step 2. Via inline button')
-  return ctx.wizard.next()
-})
-stepHandler.command('next', async (ctx) => {
-  await ctx.reply('Step 2. Via command')
-  return ctx.wizard.next()
-})*/
 stepHandler.command('exit', async (ctx) => {
   await ctx.reply('Evento annullato');
   return ctx.scene.leave()
 })
-/*stepHandler.on('text', async (ctx) => {
-  //await ctx.reply('Step 2. Via text')
-  console.log("Step 2 via text")
-  ctx.session.myData.name = ctx.message.text;
-  return ctx.wizard.next()
-})*/
 stepHandler.action('placeholderTile', (ctx) => {
     ctx.reply('Scegli una data valida')
 });
@@ -292,13 +265,6 @@ stepHandler.use((ctx) => {
 const newEventWizard = new Scenes.WizardScene(
   'new-event-wizard',
   async (ctx) => {
-    /*await ctx.reply(
-      'Step 1',
-      Markup.inlineKeyboard([
-        Markup.button.url('❤️', 'http://telegraf.js.org'),
-        Markup.button.callback('➡️ Next', 'next'),
-      ])
-    )*/
     ctx.session.myData = {};
 
     const currDate = moment();
@@ -335,18 +301,7 @@ const newEventWizard = new Scenes.WizardScene(
     await ctx.reply('Done')
     return await ctx.scene.leave()
   }
-)
-
-
-
-
-
-
-
-
-
-
-
+);
 
 bot.command('/nuovo_evento', (ctx) => {
     //ctx.scene.enter('new_event_scene')
