@@ -197,6 +197,13 @@ surveyHandler.action(['like', 'dislike'], checkInlineKeyboardValidity(), removeK
     ctx.reply(`${voteReaction}\nHai qualche consiglio per migliorare questo bot?`);
     return ctx.wizard.next();
 });
+surveyHandler.command('exit', async (ctx) => {
+    await ctx.reply('Sondaggio annullato');
+    return ctx.scene.leave();
+});
+surveyHandler.use((ctx) => {
+    ctx.replyWithMarkdown('Completa il passaggio o digita /exit per annullare');
+});
 
 const surveyWizard = new Scenes.WizardScene(
     'survey-wizard',
@@ -212,7 +219,7 @@ const surveyWizard = new Scenes.WizardScene(
     async (ctx) => {
         ctx.session.myData.feedback_msg = ctx.message.text;
         await query.saveUserFeedback(ctx)
-        ctx.reply(`Feedback: ${ctx.session.myData.feedback_msg}`);
+        ctx.replyWithMarkdown('Il tuo voto è stato registrato. Digita /sondaggio in qualunque momento per votare di nuovo');
         return ctx.scene.leave();
     }
 )
@@ -266,7 +273,7 @@ newEventHandler.action('discardEvent', removeKeyboardAfterClick(), async (ctx) =
 newEventHandler.command('exit', async (ctx) => {
   await ctx.reply('Evento annullato');
   return ctx.scene.leave();
-})
+});
 newEventHandler.action('placeholderTile', (ctx) => {
     ctx.reply('Scegli una data valida');
 });
