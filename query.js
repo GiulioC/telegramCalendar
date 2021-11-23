@@ -127,3 +127,18 @@ const listMonthEventsQuery = function(month) {
 exports.listMonthEvents = function(chatId, month) {
     return runQuery(listMonthEventsQuery(month), [chatId]);
 };
+
+const saveUserFeedbackQuery = function() {
+    return `
+        insert into feedbacks(user_id, feedback, message, date_sent)
+        select u.id, $2, $3, now()
+        from users u where chat_id = $1
+    `;
+};
+
+exports.saveUserFeedback = function(context) {
+    const chatId = context.chat.id;
+    const feedback = context.session.myData.feedback;
+    const message = context.session.myData.feedback_msg;
+    return runQuery(saveUserFeedbackQuery(), [chatId, feedback, message]);
+}

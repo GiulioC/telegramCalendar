@@ -162,20 +162,9 @@ bot.command('/dog', async (ctx) => {
     ctx.reply(res.body[0].fact);
 });
 
-bot.command('/sondaggio', async (ctx) => {
-    ctx.reply("Ti piace questo bot?", Markup.inlineKeyboard([
-        Markup.button.callback('👍', 'like'),
-        Markup.button.callback('👎', 'dislike')
-    ]));
-});
-
+// useful when reply keyboard gets stuck
 bot.command('/rimuovi_tastiera', async(ctx) => {
-    ctx.reply('tolta', Markup.removeKeyboard())
-});
-
-bot.action(['like','dislike'], checkInlineKeyboardValidity(), removeKeyboardAfterClick(), (ctx) => {
-    const feedback = ctx.update.callback_query.data;
-    ctx.reply("Grazie per il tuo feedback.");
+    ctx.reply('Tastiera rimossa', Markup.removeKeyboard())
 });
 
 bot.action(/changeMonth\/+/, checkInlineKeyboardValidity(), async (ctx) => {
@@ -199,6 +188,34 @@ bot.action(/changeMonth\/+/, checkInlineKeyboardValidity(), async (ctx) => {
         );
     });
 });
+
+const surveyHandler = new Composer();
+surveyHandler.action(['like', 'dislike'], checkInlineKeyboardValidity(), removeKeyboardAfterClick(), async (ctx) => {
+    const vote = ctx.update.callback_query.data;
+    ctx.session.myData.feedback = vote;
+    const voteReaction = vote === 'like' ? 'Grazie 😻' : 'Mi dispiace 😿';
+    ctx.reply(`${voteReaction}\nHai qualche consiglio per migliorare questo bot?`);
+    return ctx.wizard.next();
+});
+
+const surveyWizard = new Scenes.WizardScene(
+    'survey-wizard',
+    async (ctx) => {
+        ctx.session.myData = {};
+        ctx.reply("Ti piace questo bot?", Markup.inlineKeyboard([
+            Markup.button.callback('👍', 'like'),
+            Markup.button.callback('👎', 'dislike')
+        ]));
+        return ctx.wizard.next();
+    },
+    surveyHandler,
+    async (ctx) => {
+        ctx.session.myData.feedback_msg = ctx.message.text;
+        await query.saveUserFeedback(ctx)
+        ctx.reply(`Feedback: ${ctx.session.myData.feedback_msg}`);
+        return ctx.scene.leave();
+    }
+)
 
 
 const newEventHandler = new Composer();
@@ -385,12 +402,16 @@ bot.command('/start', (ctx) => {
     });
 });
 
-const stage = new Scenes.Stage([newEventWizard]);
+const stage = new Scenes.Stage([newEventWizard, surveyWizard]);
 bot.use(session());
 bot.use(stage.middleware());
 
 bot.command('/nuovo_evento', (ctx) => {
     ctx.scene.enter('new-event-wizard');
+});
+
+bot.command('/sondaggio', (ctx) => {
+    ctx.scene.enter('survey-wizard');
 });
 
 bot.command('/comandi', async (ctx) => {
