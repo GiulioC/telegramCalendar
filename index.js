@@ -87,19 +87,30 @@ const composeDatePickerKeyboard = function(baseMonth, dates, callbackType) {
     while(true) {
         let daysRow = [];
         while (daysRow.length < 7) {
-            if (slidingDate.month() < month || slidingDate.month() > month) {
+
+            const sDay = slidingDate.date();
+            const sMonth = slidingDate.month();
+            const sYear = slidingDate.year();
+
+            if (sMonth < month || sMonth > month) {
                 daysRow.push(Markup.button.callback(' ', 'placeholderTile'));
             } else {
 
                 // do something if slidingDate is earlier than current date?
-                /*if (slidingDate.date() < day) {
+                /*if (sDay < day) {
 
                 } else {
 
                 }*/
 
+                let displayDate = sDay;
+                if (sDay === day && sMonth === moment().month() && sYear === moment().year()) {
+                    // highlight current date
+                    displayDate = `[${displayDate}]`
+                }
+
                 const dateWithEvent = dates.indexOf(slidingDate.locale('IT').format("yyyy-MM-DD")) > -1;
-                const displayDate = dateWithEvent ? `${slidingDate.date()} 📌` : slidingDate.date();
+                displayDate = dateWithEvent ? `${displayDate} 📌` : displayDate;
 
                 daysRow.push(
                     Markup.button.callback(displayDate,
