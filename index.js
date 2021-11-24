@@ -242,7 +242,7 @@ newEventHandler.action(/pickDate\/+/, removeKeyboardAfterClick(), async (ctx) =>
     if (month.length === 1) { month = `0${month}`; }
     if (day.length === 1) { day = `0${day}`; }
     const date = moment(`${year}${month}${day}`).locale('IT');
-    ctx.session.myData.event_date = `${year}-${month}-${day}`;
+    ctx.session.myData.event_date = date;
     await ctx.reply("Inserisci il titolo dell'evento");
     return ctx.wizard.next();
 });
@@ -256,7 +256,7 @@ newEventHandler.action(/pickMinute\/+/, removeKeyboardAfterClick(), async (ctx) 
     console.log("pickHour")
     ctx.session.myData.event_minutes = ctx.match.input.split("/")[1];
     console.log(ctx.session.myData);
-    await ctx.replyWithMarkdown(`Riepilogo:\n- ${ctx.session.myData.event_name}\n- ${moment(ctx.session.myData.event_date).locale('IT').format("dddd D MMMM yyyy")} alle ${ctx.session.myData.event_hour}${ctx.session.myData.event_minutes}\n\nConfermi?`, Markup.inlineKeyboard([
+    await ctx.replyWithMarkdown(`Riepilogo:\n- ${ctx.session.myData.event_name}\n- ${ctx.session.myData.event_date.format("dddd D MMMM yyyy")} alle ${ctx.session.myData.event_hour}${ctx.session.myData.event_minutes}\n\nConfermi?`, Markup.inlineKeyboard([
         Markup.button.callback('👍', 'confirmEvent'),
         Markup.button.callback('👎', 'discardEvent')
     ]));
@@ -266,11 +266,11 @@ newEventHandler.action('confirmEvent', removeKeyboardAfterClick(), async (ctx) =
     ctx.session.myData.chatId = ctx.chat.id;
     query.createNewEvent(ctx.session.myData).then(async () => {
 
-        const [year, month, day] = ctx.session.myData.event_date.split("-");
-        console.log("MESE:", `event_dates_${ctx.chat.id}_${year}_${month}`);
-        console.log("GIORNO:", `day_events_${ctx.chat.id}_${year}_${month}_${day}`);
-        await redisClient.del(`event_dates_${ctx.chat.id}_${year}_${month}`);
-        await redisClient.del(`day_events_${ctx.chat.id}_${year}_${month}_${day}`);
+        const eventDate = ctx.session.myData.event_date;
+        console.log("MESE:", `event_dates_${ctx.chat.id}_${eventDate.format("yyyy_MM")}`);
+        console.log("GIORNO:", `day_events_${ctx.chat.id}_${eventDate.format("yyyy_MM_DD")}`);
+        await redisClient.del(`event_dates_${ctx.chat.id}_${eventDate.format("yyyy_MM")}`);
+        await redisClient.del(`day_events_${ctx.chat.id}_${eventDate.format("yyyy_MM_DD")}`);
 
         ctx.reply("Evento creato correttamente");
         return ctx.scene.leave();

@@ -44,8 +44,10 @@ const createNewEventQuery = function() {
 };
 
 exports.createNewEvent = function(eventData) {
-    const eventDate = parseDate(eventData.event_date, `${eventData.event_hour}${eventData.event_minutes}`);
-    const queryParams = [eventData.chatId, eventData.event_name, eventDate];
+    const eventDate = eventData.event_date.format("yyyy-MM-DD");
+    const eventTime = `${eventData.event_hour}${eventData.event_minutes}`;
+    const eventDateTime = parseDate(eventDate, eventTime);
+    const queryParams = [eventData.chatId, eventData.event_name, eventDateTime];
     return runQuery(createNewEventQuery(), queryParams);
 };
 
