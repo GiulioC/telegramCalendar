@@ -161,6 +161,11 @@ const parseCbDate = function(dateStr) {
     return moment(`${year}${month}${day}`).locale('IT');
 };
 
+const deleteRedisKeys = async function(chat, date) {
+    await redisClient.del(`event_dates_${chat}_${date.format("yyyy_MM")}`);
+    await redisClient.del(`day_events_${chat}_${date.format("yyyy_MM_DD")}`);
+};
+
 bot.command('/cat', async (ctx) => {
     const res = await got(CAT_URL, { responseType: 'json' });
     console.log(res.body)
@@ -186,7 +191,7 @@ bot.action(/changeMonth\/+/, checkInlineKeyboardValidity(), async (ctx) => {
         if (dates == null) {
             const res = await query.listMonthEvents(ctx.chat.id, newMonth);
             dates = res.rows.map(e => moment(e.date_event).locale('IT').format("yyyy-MM-DD"));
-            redisClient.set(redisKey, JSON.stringify(dates));
+            await redisClient.set(redisKey, JSON.stringify(dates));
         } else {
             dates = JSON.parse(dates);
         }
@@ -265,13 +270,8 @@ newEventHandler.action('confirmEvent', removeKeyboardAfterClick(), async (ctx) =
     console.log("ConfirmEvent");
     ctx.session.myData.chatId = ctx.chat.id;
     query.createNewEvent(ctx.session.myData).then(async () => {
-
         const eventDate = ctx.session.myData.event_date;
-        console.log("MESE:", `event_dates_${ctx.chat.id}_${eventDate.format("yyyy_MM")}`);
-        console.log("GIORNO:", `day_events_${ctx.chat.id}_${eventDate.format("yyyy_MM_DD")}`);
-        await redisClient.del(`event_dates_${ctx.chat.id}_${eventDate.format("yyyy_MM")}`);
-        await redisClient.del(`day_events_${ctx.chat.id}_${eventDate.format("yyyy_MM_DD")}`);
-
+        deleteRedisKeys(ctx.chat.id, eventDate);
         ctx.reply("Evento creato correttamente");
         return ctx.scene.leave();
     });
@@ -303,7 +303,7 @@ const newEventWizard = new Scenes.WizardScene(
         if (dates == null) {
             const res = await query.listMonthEvents(ctx.chat.id, moment().month());
             dates = res.rows.map(e => moment(e.date_event).locale('IT').format("yyyy-MM-DD"));
-            redisClient.set(redisKey, JSON.stringify(dates));
+            await redisClient.set(redisKey, JSON.stringify(dates));
         } else {
             dates = JSON.parse(dates);
         }
@@ -342,7 +342,7 @@ bot.command('/calendario_eventi', (ctx) => {
         if (dates == null) {
             const res = await query.listMonthEvents(ctx.chat.id, moment().month());
             dates = res.rows.map(e => moment(e.date_event).locale('IT').format("yyyy-MM-DD"));
-            redisClient.set(redisKey, JSON.stringify(dates));
+            await redisClient.set(redisKey, JSON.stringify(dates));
         } else {
             dates = JSON.parse(dates);
         }
@@ -364,7 +364,7 @@ bot.action(/dayEvents\/+/, async (ctx) => {
         if (events == null) {
             const res = await query.listDayEvents(ctx.chat.id, date);
             events = res.rows;
-            redisClient.set(redisKey, JSON.stringify(events));
+            await redisClient.set(redisKey, JSON.stringify(events));
         } else {
             events = JSON.parse(events);
         }
@@ -389,12 +389,7 @@ bot.action(/deleteEvent\/+/, removeKeyboardAfterClick(), async (ctx) => {
     const eventId = ctx.match.input.split("/")[1];
     query.deleteEvent(ctx.chat.id, eventId).then(async (res) => {
         const dateEvent = moment(res.rows[0].date_event);
-
-        console.log("MESE:", `event_dates_${ctx.chat.id}_${dateEvent.format("yyyy_MM")}`)
-        console.log("GIORNO:", `day_events_${ctx.chat.id}_${dateEvent.format("yyyy_MM_DD")}`);
-        await redisClient.del(`event_dates_${ctx.chat.id}_${dateEvent.format("yyyy_MM")}`);
-        await redisClient.del(`day_events_${ctx.chat.id}_${dateEvent.format("yyyy_MM_DD")}`);
-
+        deleteRedisKeys(ctx.chat.id, dateEvent);
         ctx.reply(`Evento cancellato`);
     });
 });
@@ -402,13 +397,7 @@ bot.action(/deleteEvent\/+/, removeKeyboardAfterClick(), async (ctx) => {
 bot.action(/deleteDayEvents\/+/, removeKeyboardAfterClick(), async (ctx) => {
     let date = ctx.match.input.split("/")[1];
     query.deleteAllDayEvents(ctx.chat.id, date).then(async () => {
-
-        date = moment(date);
-        console.log("MESE:", `event_dates_${ctx.chat.id}_${date.format("yyyy_MM")}`);
-        console.log("GIORNO:", `day_events_${ctx.chat.id}_${date.format("yyyy_MM_DD")}`);
-        await redisClient.del(`event_dates_${ctx.chat.id}_${date.format("yyyy_MM")}`);
-        await redisClient.del(`day_events_${ctx.chat.id}_${date.format("yyyy_MM_DD")}`);
-
+        deleteRedisKeys(ctx.chat.id, moment(date));
         ctx.reply(`Eventi cancellati`);
     });
 });
