@@ -325,11 +325,14 @@ const newEventWizard = new Scenes.WizardScene(
 
 bot.command('/lista_eventi', async (ctx) => {
     query.listUpcomingEvents(ctx.chat.id, 5, 0).then(res => {
+        let message = "Nessun evento in programma"
         const events = res.rows;
-        let message = "Prossimi eventi in programma:\n\n";
-        for (e of events) {
-            const dateEvent = moment(e.date_event).locale('IT');
-            message = `${message}🗓️ ${e.name}, ${dateEvent.format("dddd D MMMM yyyy")} alle ${dateEvent.format("HH:mm")}\n\n`;
+        if (events.length > 0 ) {
+            message = "Prossimi eventi in programma:\n\n";
+            for (e of events) {
+                const dateEvent = moment(e.date_event).locale('IT');
+                message = `${message}🗓️ ${e.name}, ${dateEvent.format("dddd D MMMM yyyy")} alle ${dateEvent.format("HH:mm")}\n\n`;
+            }
         }
         ctx.replyWithMarkdown(message);
     });
